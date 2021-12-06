@@ -34,7 +34,7 @@ type Skiplist struct {
 	length int
 }
 
-func NewSkipList() *Skiplist {
+func New() *Skiplist {
 	header := &skiplistNode{
 		"",
 		"",
