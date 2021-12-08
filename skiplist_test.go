@@ -5,7 +5,7 @@ import (
 )
 
 func buildSkiplist() *Skiplist {
-	sl := NewSkipList()
+	sl := New()
 
 	sl.Put("000", "000")
 	sl.Put("001", "001")
