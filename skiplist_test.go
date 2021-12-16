@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func buildSkiplist() *Skiplist {
-	sl := New()
+func buildSkiplist() *Skiplist[string, string] {
+	sl := New[string, string]()
 
 	sl.Put("000", "000")
 	sl.Put("001", "001")

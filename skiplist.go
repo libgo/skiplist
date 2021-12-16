@@ -6,6 +6,7 @@
 package skiplist
 
 import (
+	"constraints"
 	"errors"
 	"math/rand"
 	"time"
@@ -16,33 +17,34 @@ const (
 	P        = 0.3
 )
 
-type KeyType string
-type ValueType string
-
-type skiplistNode struct {
-	key      KeyType
-	value    ValueType
+type skiplistNode[K constraints.Ordered, V any] struct {
+	key      K
+	value    V
 	level    int
-	forward  []*skiplistNode
-	backward *skiplistNode
+	forward  []*skiplistNode[K, V]
+	backward *skiplistNode[K, V]
 }
 
-type Skiplist struct {
-	header *skiplistNode
-	tail   *skiplistNode
+type Skiplist[K constraints.Ordered, V any] struct {
+	header *skiplistNode[K, V]
+	tail   *skiplistNode[K, V]
 	level  int
 	length int
 }
 
-func New() *Skiplist {
-	header := &skiplistNode{
-		"",
-		"",
+// New a empty skiplist, the zeroK & zeroV is used for nil/default value.
+// Not familiar with generic, zeroK & zeroV should be modified later.
+func New[K constraints.Ordered, V any]() *Skiplist[K, V] {
+	var zeroK K
+	var zeroV V
+	header := &skiplistNode[K, V]{
+		zeroK,
+		zeroV,
 		MaxLevel,
-		make([]*skiplistNode, MaxLevel),
+		make([]*skiplistNode[K, V], MaxLevel),
 		nil,
 	}
-	return &Skiplist{
+	return &Skiplist[K, V]{
 		header,
 		nil,
 		1,
@@ -51,14 +53,14 @@ func New() *Skiplist {
 }
 
 // Put a new key/value into skiplist. If exists, update the value.
-func (sl *Skiplist) Put(k KeyType, v ValueType) error {
+func (sl *Skiplist[K, V]) Put(k K, v V) error {
 	// if this is the first element, just insert into level 0
 	if sl.length == 0 {
-		n := &skiplistNode{
+		n := &skiplistNode[K, V]{
 			key:      k,
 			value:    v,
 			level:    1,
-			forward:  make([]*skiplistNode, 1),
+			forward:  make([]*skiplistNode[K, V], 1),
 			backward: sl.header,
 		}
 		sl.header.forward[0] = n
@@ -78,11 +80,11 @@ func (sl *Skiplist) Put(k KeyType, v ValueType) error {
 
 	// if not found, insert a new node
 	level := randomLevel()
-	n := &skiplistNode{
+	n := &skiplistNode[K, V]{
 		key:      k,
 		value:    v,
 		level:    level,
-		forward:  make([]*skiplistNode, level),
+		forward:  make([]*skiplistNode[K, V], level),
 		backward: nil,
 	}
 
@@ -103,16 +105,17 @@ func (sl *Skiplist) Put(k KeyType, v ValueType) error {
 }
 
 // Get return the value of key. If not found, error(Not Found).
-func (sl *Skiplist) Get(key KeyType) (ValueType, error) {
+func (sl *Skiplist[K, V]) Get(key K) (V, error) {
 	found, node, _ := sl.find(key)
 	if found {
 		return node.value, nil
 	}
-	return "", errors.New("Not Found")
+	var zeroV V
+	return zeroV, errors.New("Not Found")
 }
 
 // Del remove the key from skiplist.
-func (sl *Skiplist) Del(key KeyType) error {
+func (sl *Skiplist[K, V]) Del(key K) error {
 	found, node, updates := sl.find(key)
 	if !found {
 		return errors.New("Not Found")
@@ -132,17 +135,17 @@ func (sl *Skiplist) Del(key KeyType) error {
 }
 
 // Length return the length of skiplist.
-func (sl *Skiplist) Length() int {
+func (sl *Skiplist[K, V]) Length() int {
 	return sl.length
 }
 
 // RangeByKey return range query with start key and end key.
-func (sl *Skiplist) RangeByKey(start KeyType, end KeyType) (map[KeyType]ValueType, error) {
+func (sl *Skiplist[K, V]) RangeByKey(start K, end K) (map[K]V, error) {
 	if start > end {
 		return nil, errors.New("START key is great than END key")
 	}
 
-	result := make(map[KeyType]ValueType)
+	result := make(map[K]V)
 	found, node, updates := sl.find(start)
 	if !found {
 		node = updates[0].forward[0]
@@ -156,7 +159,7 @@ func (sl *Skiplist) RangeByKey(start KeyType, end KeyType) (map[KeyType]ValueTyp
 }
 
 // RangeByCount return range query with start and count.
-func (sl *Skiplist) RangeByCount(start KeyType, count int) (map[KeyType]ValueType, error) {
+func (sl *Skiplist[K, V]) RangeByCount(start K, count int) (map[K]V, error) {
 	if count == 0 {
 		return nil, errors.New("Zero COUNT")
 	}
@@ -168,7 +171,7 @@ func (sl *Skiplist) RangeByCount(start KeyType, count int) (map[KeyType]ValueTyp
 		forward = false
 	}
 
-	result := make(map[KeyType]ValueType)
+	result := make(map[K]V)
 	found, node, updates := sl.find(start)
 
 	// If not found, set the node to updates[0].forward[0] when count>=0, or to updates[0] when count<0
@@ -194,7 +197,7 @@ func (sl *Skiplist) RangeByCount(start KeyType, count int) (map[KeyType]ValueTyp
 }
 
 // RangeByIndex return range query with start and count.
-func (sl *Skiplist) RangeByIndex(start int, count int) (map[KeyType]ValueType, error) {
+func (sl *Skiplist[K, V]) RangeByIndex(start int, count int) (map[K]V, error) {
 	if count == 0 {
 		return nil, errors.New("Zero COUNT")
 	}
@@ -209,7 +212,7 @@ func (sl *Skiplist) RangeByIndex(start int, count int) (map[KeyType]ValueType, e
 		forward = false
 	}
 
-	result := make(map[KeyType]ValueType)
+	result := make(map[K]V)
 
 	// Find the START node
 	node := sl.header.forward[0]
@@ -238,8 +241,8 @@ func (sl *Skiplist) RangeByIndex(start int, count int) (map[KeyType]ValueType, e
 }
 
 // find the key from Skiplist, and try to return update nodes to insert/delete.
-func (sl *Skiplist) find(key KeyType) (found bool, node *skiplistNode, updates []*skiplistNode) {
-	updates = make([]*skiplistNode, MaxLevel)
+func (sl *Skiplist[K, V]) find(key K) (found bool, node *skiplistNode[K, V], updates []*skiplistNode[K, V]) {
+	updates = make([]*skiplistNode[K, V], MaxLevel)
 
 	c := sl.header
 	found = false
