@@ -6,10 +6,11 @@
 package skiplist
 
 import (
-	"constraints"
 	"errors"
 	"math/rand"
 	"time"
+
+	"golang.org/x/exp/constraints"
 )
 
 const (
